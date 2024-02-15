@@ -2,6 +2,7 @@ package dev.shaz.userservice.controllers;
 
 import dev.shaz.userservice.dtos.*;
 import dev.shaz.userservice.models.SessionStatus;
+import dev.shaz.userservice.security.JwtData;
 import dev.shaz.userservice.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -39,8 +40,8 @@ public class AuthController {
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<SessionStatus> validate(@RequestBody ValidateTokenRequestDto requestDto){
-        SessionStatus status = authService.validate(requestDto.getUserId(), requestDto.getToken());
-        return new ResponseEntity<>(status, HttpStatus.OK);
+    public ResponseEntity<JwtData> validate(@RequestBody ValidateTokenRequestDto requestDto){
+        JwtData jwtData = authService.validate(requestDto.getUserId(), requestDto.getToken());
+        return new ResponseEntity<>(jwtData, HttpStatus.OK);
     }
 }

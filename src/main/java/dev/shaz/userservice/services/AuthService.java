@@ -1,11 +1,13 @@
 package dev.shaz.userservice.services;
 
 import dev.shaz.userservice.dtos.UserDto;
+import dev.shaz.userservice.models.Role;
 import dev.shaz.userservice.models.Session;
 import dev.shaz.userservice.models.SessionStatus;
 import dev.shaz.userservice.models.User;
 import dev.shaz.userservice.repositories.SessionRepository;
 import dev.shaz.userservice.repositories.UserRepository;
+import dev.shaz.userservice.security.JwtData;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
@@ -21,9 +23,7 @@ import org.springframework.util.MultiValueMapAdapter;
 
 import javax.crypto.SecretKey;
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class AuthService {
@@ -61,6 +61,7 @@ public class AuthService {
 
         HashMap<String, Object> jwtData = new HashMap<>();
         jwtData.put("email", email);
+        jwtData.put("roles", List.of(user.getRoles()));
         jwtData.put("createdAt", new Date());
         jwtData.put("expiryAt", new Date(LocalDate.now().plusDays(3).toEpochDay()));
 
@@ -108,18 +109,22 @@ public class AuthService {
         return UserDto.from(savedUser);
     }
 
-    public SessionStatus validate(Long userId, String token){
+    public JwtData validate(Long userId, String token){
+        JwtData jwtData = new JwtData();
+
         Optional<Session> sessionOptional = sessionRepository.findByTokenAndUser_Id(token, userId);
 
-//        if(sessionOptional.isEmpty()){
-//            return SessionStatus.ENDED;
-//        }
-//
-//        Session session = sessionOptional.get();
-//
-//        if(session.getSessionStatus().equals(SessionStatus.ENDED)){
-//            return SessionStatus.ENDED;
-//        }
+        if(sessionOptional.isEmpty()){
+            jwtData.setSessionStatus(SessionStatus.ENDED);
+            return jwtData;
+        }
+
+        Session session = sessionOptional.get();
+
+        if(session.getSessionStatus().equals(SessionStatus.ENDED)){
+            jwtData.setSessionStatus(SessionStatus.ENDED);
+            return jwtData;
+        }
 
         Jws<Claims> claimsJws = Jwts
                 .parser()
@@ -128,7 +133,11 @@ public class AuthService {
                 .parseSignedClaims(token);
 
         String email = (String) claimsJws.getPayload().get("email");
+        jwtData.setEmail(email);
 
-        return SessionStatus.ACTIVE;
+//        List<String> roles =  (List<String>) claimsJws.getPayload().get("roles");
+//        jwtData.setRoles(roles);
+
+        return jwtData;
     }
 }
