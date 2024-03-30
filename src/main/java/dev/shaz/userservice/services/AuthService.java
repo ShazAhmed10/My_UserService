@@ -1,5 +1,8 @@
 package dev.shaz.userservice.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.shaz.userservice.dtos.SendEmailMessageDto;
 import dev.shaz.userservice.dtos.UserDto;
 import dev.shaz.userservice.models.Role;
 import dev.shaz.userservice.models.Session;
@@ -8,6 +11,7 @@ import dev.shaz.userservice.models.User;
 import dev.shaz.userservice.repositories.SessionRepository;
 import dev.shaz.userservice.repositories.UserRepository;
 import dev.shaz.userservice.security.JwtData;
+import dev.shaz.userservice.thirdpartyclients.kafka.KafkaProducerClient;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
@@ -31,14 +35,20 @@ public class AuthService {
     private SessionRepository sessionRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
     private SecretKey secretKey;
+    private KafkaProducerClient kafkaProducerClient;
+    private ObjectMapper objectMapper;
 
     @Autowired
     public AuthService(UserRepository userRepository,
                        SessionRepository sessionRepository,
-                       BCryptPasswordEncoder bCryptPasswordEncoder){
+                       BCryptPasswordEncoder bCryptPasswordEncoder,
+                       KafkaProducerClient kafkaProducerClient,
+                       ObjectMapper objectMapper){
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.kafkaProducerClient = kafkaProducerClient;
+        this.objectMapper = objectMapper;
 
         this.secretKey = Jwts.SIG.HS256.key().build();
     }
@@ -99,12 +109,20 @@ public class AuthService {
         sessionRepository.save(session);
     }
 
-    public UserDto signUp(String email, String password){
+    public UserDto signUp(String email, String password) throws JsonProcessingException {
         User user = new User();
         user.setEmail(email);
         user.setPassword(bCryptPasswordEncoder.encode(password));
 
         User savedUser = userRepository.save(user);
+
+        SendEmailMessageDto sendEmailMessageDto = new SendEmailMessageDto();
+        sendEmailMessageDto.setTo(savedUser.getEmail());
+        sendEmailMessageDto.setSubject("Welcome Email");
+        sendEmailMessageDto.setBody("Hi, thank you for signing up with us !");
+
+        kafkaProducerClient.sendMessage("sendEmail",
+                objectMapper.writeValueAsString(sendEmailMessageDto));
 
         return UserDto.from(savedUser);
     }

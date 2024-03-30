@@ -1,5 +1,7 @@
 package dev.shaz.userservice.controllers;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.shaz.userservice.dtos.*;
 import dev.shaz.userservice.models.SessionStatus;
 import dev.shaz.userservice.security.JwtData;
@@ -35,7 +37,15 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<UserDto> signUp(@RequestBody SignUpRequestDto requestDto){
-        UserDto userDto = authService.signUp(requestDto.getEmail(), requestDto.getPassword());
+        UserDto userDto = new UserDto();
+        try {
+            userDto = authService.signUp(requestDto.getEmail(), requestDto.getPassword());
+        }
+        catch(JsonProcessingException jsonProcessingException){
+            System.out.println(jsonProcessingException.getMessage());
+            return new ResponseEntity<>(userDto, HttpStatus.BAD_REQUEST);
+        }
+
         return new ResponseEntity<>(userDto, HttpStatus.OK);
     }
 
